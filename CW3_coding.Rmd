@@ -1,0 +1,262 @@
+---
+title: "CW3_coding"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## R Markdown
+
+This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Slide with Bullets
+
+- Bullet 1
+- Bullet 2
+- Bullet 3
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+getwd()
+```
+
+## Slide with Plot
+
+```{r pressure}
+help(nhanes)
+```
+
+
+```{r}
+require(mice)
+cc(nhanes)
+summary(nhanes)
+nrow(cc(nhanes))
+md.pattern(nhanes)
+library(mice)
+
+```
+
+```{r}
+imps_normb <- mice(nhanes, printFlag = FALSE, seed = 1)
+
+imps_normb$imp$bmi[,1]
+
+
+```
+
+```{r}
+fits <- with(imps_normb, lm(bmi ~ age + hyp + chl))
+class(fits)
+
+fits$analyses[[1]]
+
+summary(fits$analyses[[1]])
+
+```
+
+```{r}
+
+ests <- pool(fits)
+ests # look at riv and lambda
+summary(ests, conf.int = TRUE)
+
+```
+
+```{r}
+ests_seed2 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 2), lm(bmi ~ age + hyp + chl)))
+ests_seed3 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 3), lm(bmi ~ age + hyp + chl)))
+ests_seed4 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 4), lm(bmi ~ age + hyp + chl)))
+ests_seed5 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 5), lm(bmi ~ age + hyp + chl)))
+ests_seed6 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 6), lm(bmi ~ age + hyp + chl)))
+```
+
+```{r}
+ests_seed2
+ests_seed3
+ests_seed4
+ests_seed5
+ests_seed6
+```
+
+```{r}
+ests_seed1_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 1, m = 100), lm(bmi ~ age + hyp + chl)))
+ests_seed2_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 2, m = 100), lm(bmi ~ age + hyp + chl)))
+ests_seed3_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 3, m = 100), lm(bmi ~ age + hyp + chl)))
+ests_seed4_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 4, m = 100), lm(bmi ~ age + hyp + chl)))
+ests_seed5_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 5, m = 100), lm(bmi ~ age + hyp + chl)))
+ests_seed6_100 <- pool(with(mice(nhanes, printFlag = FALSE, seed = 6, m = 100), lm(bmi ~ age + hyp + chl)))
+```
+
+```{r}
+ests_seed1_100
+ests_seed2_100
+ests_seed3_100
+ests_seed4_100
+ests_seed5_100
+ests_seed6_100
+```
+
+```{r}
+# Q4
+
+load("dataex4.Rdata")
+imp0 <- mice(dataex4, maxit = 0)
+imp0
+
+```
+
+
+```{r}
+# beta0 <- 1.5
+# beta1 <- 1
+# beta2 <- 2
+# beta3 <- 1
+# 4 a
+ests_q4_seed1 <- pool(with(mice(dataex4, printFlag = FALSE, maxit = 20,
+                                seed = 1, m = 50), lm(y ~ x1 + x2 + (x1 * x2))  ))
+ests_q4_seed1
+summary(ests_q4_seed1, conf.int = TRUE)
+```
+
+
+
+```{r}
+# 4 b
+dataex4$x1x2 <- dataex4$x1 * dataex4$x2
+imp0 <- mice(dataex4, maxit = 0)
+meth <- imp0$method
+meth["x1x2"] <- "~I(x1*x2)"
+meth
+pred <- imp0$predictorMatrix
+pred[c("x1", "x2"), "x1x2"] <- 0
+pred[, c("x1", "x2")] <- 0
+pred["x1", "x2"] <- 1
+pred["x2", "x1"] <- 1
+pred
+
+visSeq <- imp0$visitSequence
+visSeq
+
+ests_q4b_seed1 <- pool(with(mice(dataex4, method = meth,
+                                 predictorMatrix = pred, maxit = 20,
+                                 printFlag = FALSE, seed = 1, m = 50),
+                            lm(y ~ x1 + x2 + (x1 * x2))  ))
+
+
+ests_q4b_seed1
+plot(mice(dataex4, method = meth, predictorMatrix = pred,
+                                 printFlag = FALSE, seed = 1, m = 50),
+     layout = c(6,6))
+summary(ests_q4b_seed1, conf.int = TRUE)
+
+```
+
+
+```{r}
+# dataex4$x1x2 <- dataex4$x1 * dataex4$x2
+
+# If we impute the BMI directly, its values
+# may be inconsistent with the imputed values of height and weight (none of the three variables is fully
+# observed). Also, because there are cases where only one of these two variables is missing, to possibly gain
+# some precision, we want to impute the height and the weight separately and BMI should then be calculated
+# from the (imputed) values of these two variables. If BMI is not a relevant predictor in any of the other
+# imputation models, we could just exclude BMI from the imputation and calculate it afterwards. To use BMI
+# as a predictor in the other imputation models, it has to be calculated in each iteration of the algorithm,
+# which in mice() is possible through the so-called passive imputation strategy, which requires us to specify a
+# formula to calculate BMI through the I() operator.
+
+ests_q4c_seed1 <- pool(with(mice(dataex4, maxit = 20,
+                                 printFlag = FALSE, seed = 1, m = 50),
+                            lm(y ~ x1 + x2 + (x1 * x2))  ))
+
+summary(ests_q4c_seed1, conf.int = TRUE)
+
+plot(mice(dataex4, printFlag = FALSE, seed = 1, m = 50), layout = c(6,6))
+
+```
+
+
+```{r}
+
+# q 2
+
+load("dataex2.Rdata")
+
+data_range <- 1:100
+
+for (i in data_range){
+ # dataex2[, , i]
+ests_q2_seed1 <- pool(with(mice(dataex2[, , i], method = "norm.nob",
+                                 printFlag = FALSE, seed = 1, m = 20),
+                            lm(Y ~ X)  ))
+print(summary(ests_q2_seed1, conf.int = TRUE)[2, c(7, 8)])
+}
+
+
+
+```
+
+
+```{r}
+
+
+for (i in data_range){
+ # dataex2[, , i]
+ests_q2b_seed1 <- pool(with(mice(dataex2[, , i], method = "norm.boot",
+                                 printFlag = FALSE, seed = 1, m = 20),
+                            lm(Y ~ X)  ))
+print(summary(ests_q2b_seed1, conf.int = TRUE)[2, c(7, 8)])
+}
+
+
+
+```
+
+
+
+```{r}
+
+
+# q5
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
